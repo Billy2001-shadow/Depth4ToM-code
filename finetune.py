@@ -17,6 +17,7 @@ import wandb
 
 from midas.dpt_depth import DPTDepthModel
 from midas.midas_net import MidasNet
+from depth_anything_v2.dpt import DepthAnythingV2
 from midas.midas_net_custom import MidasNet_small
 from midas.transforms import Resize, ResizeTrain, NormalizeImage, PrepareForNet, RandomCrop, MirrorSquarePad, ColorAug, RandomHorizontalFlip
 
@@ -106,6 +107,35 @@ def run(args):
                     PrepareForNet(),
                 ]
             )
+        
+    elif model_type == "depth_anything_v2":
+        model_encoder = 'vitl' # 指定使用的
+        model_configs = {
+            'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]},
+            'vitb': {'encoder': 'vitb', 'features': 128, 'out_channels': [96, 192, 384, 768]},
+            'vitl': {'encoder': 'vitl', 'features': 256, 'out_channels': [256, 512, 1024, 1024]},
+            'vitg': {'encoder': 'vitg', 'features': 384, 'out_channels': [1536, 1536, 1536, 1536]}
+        }
+        model = DepthAnythingV2(**model_configs[model_encoder])
+        net_w, net_h = 518, 518
+        transform = Compose(
+            [
+                RandomHorizontalFlip(prob=0.5),
+                ResizeTrain(
+                    net_w,
+                    net_h,
+                    resize_target=True,
+                    keep_aspect_ratio=True,
+                    ensure_multiple_of=32,
+                    resize_method="lower_bound",
+                    image_interpolation_method=cv2.INTER_CUBIC,
+                ),
+                RandomCrop(net_w, net_h),
+                ColorAug(prob=0.5),
+                NormalizeImage(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                PrepareForNet(),
+            ]
+        )
     else:
         print(f"model_type '{model_type}' not implemented, use: --model_type large")
         assert False
@@ -223,7 +253,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--exp_name', 
-        default='midas-ft',
+        default='depth_anything_v2-ft',
     )
 
     # Paths
@@ -257,19 +287,19 @@ if __name__ == "__main__":
     )
 
     parser.add_argument('-t', '--model_type', 
-        default='dpt_large',
-        help='model type: dpt_large, midas_v21'
+        default='depth_anything_v2',
+        help='model type: dpt_large, midas_v21 depth_anything_v2'
     )
 
     # Training params
     parser.add_argument('-e', '--epochs', 
-        default=20,
+        default=30,
         type=int,
         help='number of epochs'
     )
 
     parser.add_argument('-bs', '--batch_size', 
-        default=8,
+        default=2,
         type=int,
         help='batch_size'
     )
@@ -302,8 +332,9 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(args.output_path, args.exp_name), exist_ok=True)
 
     default_models = {
-        "midas_v21" : "weights/Base/midas_v21-base.pt",
-        "dpt_large" : "weights/Base/dpt_large-base.pt",
+        "midas_v21" : "/mnt/cw/NTIRE2025/weights/Base/midas_v21-base.pt",  #"midas_v21" : "weights/Base/midas_v21-base.pt",
+        "dpt_large" : "/mnt/cw/NTIRE2025/weights/Base/dpt_large-base.pt",  #"dpt_large" : "weights/Base/dpt_large-base.pt",
+        "depth_anything_v2": "/mnt/cw/NTIRE2025/weights/Base/depth_anything_v2_vitl.pth"
     }
    
     if args.model_path is None:

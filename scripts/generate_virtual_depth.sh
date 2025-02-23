@@ -1,9 +1,9 @@
-root="path_to_dataset_root"
+root="/mnt/cw/NTIRE2025" #root="path_to_dataset_root"
 cd ..
 
-model="dpt_large" # ["midas_v21", "dpt_large"]
-dataset="Trans10K" # ["Trans10K", "MSD"]
-splits="train test validation"
+model="depth_anything_v2" # ["midas_v21", "dpt_large"] depth_anything_v2
+dataset="MSD" # ["Trans10K", "MSD"]
+splits="train test"  # splits="train test validation"                 
 for split in $splits
 do
     echo $model $dataset $split

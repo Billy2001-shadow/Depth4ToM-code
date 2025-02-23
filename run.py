@@ -14,6 +14,8 @@ from midas.midas_net import MidasNet
 from midas.midas_net_custom import MidasNet_small
 from midas.transforms import Resize, ResizeTrain, NormalizeImage, PrepareForNet, RandomCrop, MirrorSquarePad, ColorAug, RandomHorizontalFlip
 
+from depth_anything_v2.dpt import DepthAnythingV2
+
 from utils import parse_dataset_txt
 
 def run(input_path, output_path, dataset_txt, model_path, model_type="large", save_full=False,  mask_path="", cls2mask=[], mean=False, it=5, output_list=False):
@@ -77,6 +79,33 @@ def run(input_path, output_path, dataset_txt, model_path, model_type="large", sa
                     PrepareForNet(),
                 ]
             )
+    
+    elif model_type == "depth_anything_v2":
+        model_encoder = 'vitl' # 指定使用的
+        model_configs = {
+            'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]},
+            'vitb': {'encoder': 'vitb', 'features': 128, 'out_channels': [96, 192, 384, 768]},
+            'vitl': {'encoder': 'vitl', 'features': 256, 'out_channels': [256, 512, 1024, 1024]},
+            'vitg': {'encoder': 'vitg', 'features': 384, 'out_channels': [1536, 1536, 1536, 1536]}
+        }
+        model = DepthAnythingV2(**model_configs[model_encoder])
+        input_size=518
+        transform = Compose([
+            Resize(
+                width=input_size,
+                height=input_size,
+                resize_target=False,
+                keep_aspect_ratio=True,
+                ensure_multiple_of=14,
+                resize_method='lower_bound',
+                image_interpolation_method=cv2.INTER_CUBIC,
+            ),
+            NormalizeImage(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            PrepareForNet(),
+        ])
+
+
+
     else:
         print(f"model_type '{model_type}' not implemented, use: --model_type large")
         assert False
@@ -210,15 +239,16 @@ if __name__ == "__main__":
     )
 
     parser.add_argument('-t', '--model_type', 
-        default='dpt_large',
-        help='model type: dpt_large, midas_v21'
+        default='depth_anything_v2',
+        help='model type: dpt_large, midas_v21 depth_anything_v2'
     )
 
     args = parser.parse_args()
 
     default_models = {
-        "midas_v21": "weights/Base/midas_v21-base.pt",
-        "dpt_large": "weights/Base/dpt_large-base.pt",
+        "midas_v21": "/mnt/cw/NTIRE2025/weights/Base/midas_v21-base.pt", #"weights/Base/midas_v21-base.pt",
+        "dpt_large": "/mnt/cw/NTIRE2025/weights/Base/dpt_large-base.pt", #"weights/Base/dpt_large-base.pt",
+        "depth_anything_v2": "/mnt/cw/NTIRE2025/weights/Base/depth_anything_v2_vitl.pth"
     }
 
     if args.model_weights is None:
